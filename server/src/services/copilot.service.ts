@@ -1,15 +1,15 @@
-import { geminiService } from './gemini.service';
+import { geminiService } from './gemini.service.js';
 import { 
   CopilotResponseSchema, 
   type CopilotRequest, 
   type CopilotResponse,
   type CopilotChanges
-} from '../schemas/copilot.schema';
+} from '../schemas/copilot.schema.js';
 import { 
   buildCopilotSystemInstruction, 
   buildCopilotUserPrompt 
-} from '../prompts/copilot.prompt';
-import { logger } from '../utils/logger';
+} from '../prompts/copilot.prompt.js';
+import { logger } from '../utils/logger.js';
 
 export class CopilotService {
   /**

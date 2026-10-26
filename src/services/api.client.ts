@@ -21,7 +21,14 @@ export class ApiClient {
   private readonly isMockEnabled: boolean;
 
   constructor() {
-    this.baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
+    const rawUrl =
+      (import.meta.env.VITE_API_URL as string | undefined) ||
+      (import.meta.env.VITE_API_BASE_URL as string | undefined) ||
+      'http://localhost:3001/api';
+
+    const trimmed = rawUrl.trim();
+    const noTrailing = trimmed.replace(/\/+$/, '');
+    this.baseUrl = noTrailing.endsWith('/api') ? noTrailing : `${noTrailing}/api`;
     this.isMockEnabled = import.meta.env.VITE_ENABLE_MOCK_SERVICES === 'true';
   }
 

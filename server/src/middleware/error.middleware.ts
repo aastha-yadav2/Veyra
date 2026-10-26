@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
-import { logger } from '../utils/logger';
+import { logger } from '../utils/logger.js';
 
 export function errorHandler(
   err: unknown,
@@ -36,6 +36,19 @@ export function errorHandler(
       error: {
         code: 'MALFORMED_JSON',
         message: 'Invalid JSON formatted body.',
+      },
+    });
+    return;
+  }
+
+  // Handle CORS policy errors
+  if (err instanceof Error && err.message.includes('CORS policy')) {
+    logger.warn('[ErrorHandler] CORS policy violation:', err.message);
+    res.status(403).json({
+      status: 'error',
+      error: {
+        code: 'CORS_FORBIDDEN',
+        message: 'Origin not allowed by CORS policy.',
       },
     });
     return;

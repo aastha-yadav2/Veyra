@@ -453,34 +453,102 @@ Open **`http://localhost:5173`** in your browser.
 
 ### Step 5: Run Verification Commands
 
-**Run All 49 Tests:**
+**Run All 52 Tests:**
 ```bash
-# Frontend tests (20 tests)
-npm test
+# Frontend Vitest suite (20 tests across 2 suites)
+npm test -- --run
 
-# Backend tests (29 tests)
-cd server && npm test
+# Backend Vitest suite (32 tests across 4 suites)
+cd server && npm test -- --run
 ```
 
 **Run Linters:**
 ```bash
-# Frontend lint (0 warnings/errors)
+# Frontend lint (0 warnings / 0 errors on 68 files)
 npm run lint
 
-# Backend lint (0 warnings/errors)
+# Backend lint (0 warnings / 0 errors on 12 files)
 cd server && npm run lint
 ```
 
 **Verify Production Builds:**
 ```bash
-# Frontend build
+# Frontend production bundle (tsc -b && vite build)
 npm run build
 
-# Backend build
+# Backend production build (tsc)
 cd server && npm run build
 ```
 
 ---
+
+## 🌐 Production Deployment Guide
+
+Veyra is architected for zero-secret client exposure:
+
+```
+┌─────────────────────────────────┐           ┌──────────────────────────────────┐
+│   Vercel (Frontend SPA)         │  HTTPS    │   Render (Node.js API)           │
+│   • Vite + React 19             ├──────────►│   • Express + Zod + Rate Limiter │
+│   • vercel.json SPA rewrites    │           │   • CORS whitelist for Vercel    │
+│   • VITE_API_URL configured     │           │   • GEMINI_API_KEY (Server Only) │
+└─────────────────────────────────┘           └──────────────────────────────────┘
+```
+
+### 1. Deploy Backend on Render
+
+1. Sign in to [Render](https://render.com) and click **New > Web Service**.
+2. Connect your Git repository (`https://github.com/aastha-yadav2/Veyra.git`).
+3. Configure the service settings:
+   - **Root Directory:** `server`
+   - **Environment:** `Node`
+   - **Build Command:** `npm install && npm run build`
+   - **Start Command:** `npm start`
+   - **Health Check Path:** `/health`
+4. Set **Environment Variables** in the Render Dashboard:
+   - `NODE_ENV`: `production`
+   - `PORT`: `10000` (Render binds automatically)
+   - `GEMINI_API_KEY`: *(Your Google AI Studio API Key)*
+   - `FRONTEND_URL`: `https://your-veyra-app.vercel.app` *(Your Vercel deployment URL)*
+   - `RATE_LIMIT_WINDOW_MS`: `900000` *(15 minutes)*
+   - `RATE_LIMIT_MAX_REQUESTS`: `45`
+5. Click **Create Web Service**.
+6. Verify deployment by visiting:
+   ```
+   GET https://your-veyra-api.onrender.com/health
+   ```
+   Expected response:
+   ```json
+   {
+     "status": "ok",
+     "service": "veyra-planning-backend",
+     "timestamp": "2026-10-26T15:16:29.056Z"
+   }
+   ```
+
+### 2. Deploy Frontend on Vercel
+
+1. Sign in to [Vercel](https://vercel.com) and click **Add New > Project**.
+2. Import the Git repository (`https://github.com/aastha-yadav2/Veyra.git`).
+3. Configure Project Settings:
+   - **Framework Preset:** `Vite`
+   - **Root Directory:** `./`
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `dist`
+4. Set **Environment Variables** under Project Settings:
+   - `VITE_API_URL`: `https://your-veyra-api.onrender.com` *(Your Render backend URL)*
+   - `VITE_ENABLE_MOCK_SERVICES`: `false`
+5. Click **Deploy**. Vercel will build the SPA and apply `vercel.json` rewrite rules and security headers.
+
+### 3. Post-Deployment Verification Checklist
+
+Once both services are live:
+1. **Frontend Loading:** Navigate to `https://your-veyra-app.vercel.app` and confirm landing hero, navigation, and design tokens load.
+2. **Backend Health:** Ping `https://your-veyra-api.onrender.com/health` to confirm 200 OK.
+3. **Event Planning Generation:** Complete the 3-step wizard and click "Generate Event Plan". Ensure the live plan is returned with categorized budgets and chronological milestones.
+4. **Veyra Copilot:** Open Copilot in the dashboard and send: *"Reduce budget by 15% and add a welcome drinks reception"*. Confirm Copilot modifies the plan and maintains mathematical budget ceiling.
+5. **CORS Enforcement:** Test cross-origin requests from an unauthorized domain and verify HTTP 403 Forbidden with `CORS_FORBIDDEN`.
+6. **Input Validation:** Test sending malformed payloads and confirm HTTP 400 Bad Request with structured Zod errors.
 
 ## ⚠️ Current Limitations
 

@@ -7,7 +7,7 @@ import {
   VendorItemSchema, 
   IdeaItemSchema, 
   RiskItemSchema
-} from './planning.schema';
+} from './planning.schema.js';
 
 export const CopilotRequestSchema = z.object({
   message: z

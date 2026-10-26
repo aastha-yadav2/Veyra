@@ -1,7 +1,7 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
-import { CopilotRequestSchema } from '../schemas/copilot.schema';
-import { copilotService } from '../services/copilot.service';
-import { planningRateLimiter } from '../middleware/rateLimit.middleware';
+import { CopilotRequestSchema } from '../schemas/copilot.schema.js';
+import { copilotService } from '../services/copilot.service.js';
+import { planningRateLimiter } from '../middleware/rateLimit.middleware.js';
 
 export const copilotRouter = Router();
 

@@ -3,12 +3,12 @@ import {
   GeneratedPlanSchema, 
   type GeneratedPlan, 
   type PlanningRequest 
-} from '../schemas/planning.schema';
+} from '../schemas/planning.schema.js';
 import { 
   buildPlanningSystemInstruction, 
   buildPlanningUserPrompt 
-} from '../prompts/planning.prompt';
-import { logger } from '../utils/logger';
+} from '../prompts/planning.prompt.js';
+import { logger } from '../utils/logger.js';
 
 export interface IPlanningAiService {
   generatePlan(request: PlanningRequest): Promise<GeneratedPlan>;

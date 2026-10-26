@@ -1,9 +1,9 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
-import { PlanningRequestSchema } from '../schemas/planning.schema';
-import { geminiService } from '../services/gemini.service';
-import { planningRateLimiter } from '../middleware/rateLimit.middleware';
+import { PlanningRequestSchema } from '../schemas/planning.schema.js';
+import { geminiService } from '../services/gemini.service.js';
+import { planningRateLimiter } from '../middleware/rateLimit.middleware.js';
 
-import { copilotRouter } from './copilot.routes';
+import { copilotRouter } from './copilot.routes.js';
 
 export const planningRouter = Router();
 

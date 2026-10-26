@@ -3,24 +3,73 @@ dotenv.config();
 
 import express from 'express';
 import cors from 'cors';
-import { planningRouter } from './routes/planning.routes';
-import { errorHandler } from './middleware/error.middleware';
-import { logger } from './utils/logger';
+import { planningRouter } from './routes/planning.routes.js';
+import { errorHandler } from './middleware/error.middleware.js';
+import { logger } from './utils/logger.js';
 
 export const app = express();
 
-// Security: Safe CORS configuration
-const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
-  .split(',')
-  .map((origin) => origin.trim());
+// Security: Safe CORS configuration supporting both development and production
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Gather origins from FRONTEND_URL and CORS_ORIGIN
+const configuredOrigins: string[] = [];
+
+if (process.env.FRONTEND_URL) {
+  process.env.FRONTEND_URL.split(',').forEach((url) => {
+    const trimmed = url.trim().replace(/\/+$/, '');
+    if (trimmed) configuredOrigins.push(trimmed);
+  });
+}
+
+if (process.env.CORS_ORIGIN) {
+  process.env.CORS_ORIGIN.split(',').forEach((url) => {
+    const trimmed = url.trim().replace(/\/+$/, '');
+    if (trimmed) configuredOrigins.push(trimmed);
+  });
+}
+
+// In development / test, include local development servers
+const defaultDevOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://localhost:4173',
+];
+
+// In production, reject wildcard '*' and allow only configured origins
+export const allowedOrigins = isProduction
+  ? configuredOrigins.filter((origin) => origin !== '*')
+  : Array.from(new Set([...configuredOrigins, ...defaultDevOrigins]));
+
+if (isProduction && allowedOrigins.length === 0) {
+  logger.warn(
+    '[CORS] In production mode, FRONTEND_URL is not set. Cross-origin browser requests will be blocked.'
+  );
+}
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, postman) or if origin is in whitelist
-      if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      // Allow requests with no origin (mobile apps, curl, uptime monitors, health checks)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      const normalizedOrigin = origin.trim().replace(/\/+$/, '');
+
+      // In non-production, check for wildcard
+      if (!isProduction && allowedOrigins.includes('*')) {
+        return callback(null, true);
+      }
+
+      // Exact match against whitelist
+      const isAllowed = allowedOrigins.some((allowed) => allowed === normalizedOrigin);
+
+      if (isAllowed) {
         callback(null, true);
       } else {
+        logger.warn(`[CORS] Blocked request from unauthorized origin: ${origin}`);
         callback(new Error('Blocked by CORS policy'));
       }
     },
@@ -62,8 +111,8 @@ const PORT = Number(process.env.PORT) || 3001;
 
 // Only start listening if run directly (not during vitest test imports)
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
-    logger.info(`Veyra Planning Backend listening on http://localhost:${PORT}`);
-    logger.info(`Health check available at http://localhost:${PORT}/health`);
+  app.listen(PORT, '0.0.0.0', () => {
+    logger.info(`Veyra Planning Backend listening on http://0.0.0.0:${PORT}`);
+    logger.info(`Health check available at http://0.0.0.0:${PORT}/health`);
   });
 }
