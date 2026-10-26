@@ -502,7 +502,7 @@ Veyra is architected for zero-secret client exposure:
 3. Configure the service settings:
    - **Root Directory:** `server`
    - **Environment:** `Node`
-   - **Build Command:** `npm install && npm run build`
+   - **Build Command:** `npm install --include=dev && npm run build`
    - **Start Command:** `npm start`
    - **Health Check Path:** `/health`
 4. Set **Environment Variables** in the Render Dashboard:
