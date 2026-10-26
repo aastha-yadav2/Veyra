@@ -75,8 +75,10 @@ export const InteractiveDemoSection: React.FC<InteractiveDemoSectionProps> = ({
 
   const plan = planResponse.data;
 
-  // Recalculate dynamic budget when guest slider changes
-  const dynamicBudget = plan ? eventService.calculateSmartBudget(selectedCategory, guestCountModifier * 280) : null;
+  // Requirement 6: Targeted useMemo prevents recalculating dynamic budget on unrelated UI re-renders (tabs, simulation toggles)
+  const dynamicBudget = React.useMemo(() => {
+    return plan ? eventService.calculateSmartBudget(selectedCategory, guestCountModifier * 280) : null;
+  }, [plan, selectedCategory, guestCountModifier]);
 
   return (
     <section id="interactive-demo" className="py-20 sm:py-28 relative">

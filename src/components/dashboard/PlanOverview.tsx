@@ -10,11 +10,11 @@ import {
 } from 'lucide-react';
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
-import type { FullPlanningDashboardData } from '../../types/event';
+import type { FullPlanningDashboardData, DashboardTab } from '../../types/event';
 
 interface PlanOverviewProps {
   data: FullPlanningDashboardData;
-  onNavigateTab: (tabId: string) => void;
+  onNavigateTab: (tabId: DashboardTab) => void;
 }
 
 export const PlanOverview: React.FC<PlanOverviewProps> = ({
@@ -31,7 +31,7 @@ export const PlanOverview: React.FC<PlanOverviewProps> = ({
   const symbol = currencySymbols[eventDetails.currency] || eventDetails.currency;
 
   const plannedSpend = rawPlan.budget.categories.reduce((acc, c) => acc + c.amount, 0);
-  const completedTasks = tasks.filter((t) => t.isCompleted).length;
+  const completedTasks = tasks.reduce((acc, t) => (t.isCompleted ? acc + 1 : acc), 0);
 
   return (
     <div className="space-y-6">

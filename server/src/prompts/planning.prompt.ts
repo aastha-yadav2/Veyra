@@ -1,7 +1,10 @@
-import type { PlanningRequest } from '../schemas/planning.schema';
+import type { PlanningRequest } from '../schemas/planning.schema.js';
 
-export function buildPlanningSystemInstruction(): string {
-  return `You are Veyra, an elite senior event planning intelligence engine.
+/**
+ * Requirement 11: Static system instruction module-level constant
+ * Avoids reconstructing the static string on every planning request.
+ */
+export const PLANNING_SYSTEM_INSTRUCTION = `You are Veyra, an elite senior event planning intelligence engine.
 Your purpose is to architect comprehensive, mathematically sound, highly practical event blueprints for weddings, birthdays, community gatherings, and bespoke celebrations.
 
 CRITICAL OPERATIONAL RULES:
@@ -22,6 +25,9 @@ CRITICAL OPERATIONAL RULES:
    - Output PURE, RAW JSON matching the exact schema requested.
    - Do NOT wrap your output in markdown code blocks (\`\`\`json ... \`\`\`).
    - Do NOT include conversational filler, greetings, or postscripts.`;
+
+export function buildPlanningSystemInstruction(): string {
+  return PLANNING_SYSTEM_INSTRUCTION;
 }
 
 export function buildPlanningUserPrompt(req: PlanningRequest): string {

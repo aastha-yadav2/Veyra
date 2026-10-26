@@ -6,6 +6,8 @@
  */
 
 import { apiClient, type RequestConfig } from './api.client';
+import { budgetService } from './budget.service';
+import { planMapper } from './plan.mapper';
 import { EVENT_TYPES } from '../data/eventTypes';
 import { MOCK_EVENT_PLANS } from '../data/mockPlans';
 import type { 
@@ -13,7 +15,9 @@ import type {
   EventPlan, 
   EventTypeDefinition, 
   BudgetSummary,
-  BudgetItem
+  ServerGeneratedPlan,
+  EventCreationFormData,
+  CopilotResponse
 } from '../types/event';
 import type { 
   ServiceResponse, 
@@ -78,80 +82,14 @@ export class EventService implements IEventService {
           preferences: [input.preferredVibe || 'minimal decor'],
         };
 
-        const backendResponse = await apiClient.post<any>('/planning/generate', payload);
+        const backendResponse = await apiClient.post<ServerGeneratedPlan>('/planning/generate', payload);
         if (backendResponse.status === 'success' && backendResponse.data) {
-          const raw = backendResponse.data;
-          const mappedBudget: BudgetSummary = {
-            totalBudget: raw.budget.total,
-            allocatedBudget: raw.budget.total - raw.budget.contingency.amount,
-            contingencyBuffer: raw.budget.contingency.amount,
-            currency: raw.budget.currency,
-            categories: [
-              ...raw.budget.categories.map((c: any, idx: number): BudgetItem => ({
-                id: `srv-b-${idx}`,
-                category: c.name,
-                allocatedAmount: c.amount,
-                spentAmount: 0,
-                percentage: c.percentage,
-                priority: 'must-have',
-                notes: c.reason,
-              })),
-              {
-                id: 'srv-contingency',
-                category: 'Smart Contingency Reserve (AI Buffer)',
-                allocatedAmount: raw.budget.contingency.amount,
-                spentAmount: 0,
-                percentage: raw.budget.contingency.percentage,
-                priority: 'must-have',
-                notes: 'Automatic reserve for weather and unexpected overtime fees.',
-              },
-            ],
-          };
-
-          const eventPlan: EventPlan = {
-            id: `plan-ai-${Date.now()}`,
-            title: input.title || raw.eventSummary.slice(0, 60),
-            category: input.category,
-            guestCount: input.guestCount,
-            targetDate: payload.date,
-            location: input.location || payload.location,
-            status: 'draft',
-            budget: mappedBudget,
-            timeline: raw.timeline.map((t: any, idx: number) => ({
-              id: `t-${idx}`,
-              time: t.deadline,
-              phase: 'main-program',
-              title: t.task,
-              description: `Category: ${t.category} • Priority: ${t.priority.toUpperCase()}`,
-              assignedRole: 'Lead Coordinator',
-              isMilestone: t.priority === 'high',
-            })),
-            vendorChecklist: raw.vendors.flatMap((v: any, vIdx: number) =>
-              v.tasks.map((task: string, tIdx: number) => ({
-                id: `v-${vIdx}-${tIdx}`,
-                category: 'venue',
-                task: `${task} (${v.category})`,
-                dueDateOffsetDays: -30,
-                dueDateLabel: 'Prior to Event',
-                status: 'pending',
-                estimatedCostRange: 'Based on quote',
-                aiTip: v.questionsToAsk[0] || undefined,
-              }))
-            ),
-            ideas: raw.ideas.map((idea: any, idx: number) => ({
-              id: `idea-${idx}`,
-              title: idea.title,
-              themeTag: 'GenAI Concept',
-              description: idea.description,
-              budgetImpact: 'medium',
-              practicalityScore: 9,
-            })),
-            forgettingAnalysis: {
-              criticalGaps: raw.missingItems,
-              complianceReminders: raw.risks.map((r: any) => `${r.title}: ${r.solution}`),
-              readinessScore: 92,
-            },
-          };
+          const eventPlan = planMapper.mapServerPlanToEventPlan(
+            backendResponse.data,
+            input,
+            payload.date,
+            input.location || payload.location
+          );
 
           return {
             data: eventPlan,
@@ -187,95 +125,20 @@ export class EventService implements IEventService {
 
   /**
    * Pure domain calculation for smart budget allocation with 10% AI safety buffer.
+   * Delegated to specialized BudgetService (Requirement 4).
    */
   public calculateSmartBudget(category: EventCategory, totalAmount: number): BudgetSummary {
-    const contingencyRate = 0.10; // 10% smart emergency reserve
-    const buffer = Math.round(totalAmount * contingencyRate);
-    const usableBudget = totalAmount - buffer;
-
-    let weights: { category: string; pct: number; priority: 'must-have' | 'recommended' | 'optional' }[];
-
-    switch (category) {
-      case 'wedding':
-        weights = [
-          { category: 'Venue & Reception Dining', pct: 0.45, priority: 'must-have' },
-          { category: 'Photography & Cinematography', pct: 0.16, priority: 'must-have' },
-          { category: 'Floral & Atmosphere Design', pct: 0.14, priority: 'recommended' },
-          { category: 'Live Music & Entertainment', pct: 0.12, priority: 'recommended' },
-          { category: 'Stationery, Favors & Signage', pct: 0.05, priority: 'optional' },
-          { category: 'Attire & Beauty Prep', pct: 0.08, priority: 'recommended' },
-        ];
-        break;
-      case 'birthday':
-        weights = [
-          { category: 'Private Venue or Lounge', pct: 0.35, priority: 'must-have' },
-          { category: 'Mixology & Culinary Bites', pct: 0.32, priority: 'must-have' },
-          { category: 'DJ & Sound Experience', pct: 0.18, priority: 'recommended' },
-          { category: 'Theme Lighting & Photo Ops', pct: 0.10, priority: 'recommended' },
-          { category: 'Custom Cake & Midnight Treats', pct: 0.05, priority: 'recommended' },
-        ];
-        break;
-      case 'community':
-        weights = [
-          { category: 'City Permits, Sound & Security', pct: 0.25, priority: 'must-have' },
-          { category: 'Canopy Staging & Audio Rig', pct: 0.35, priority: 'must-have' },
-          { category: 'Restrooms & Eco-Recycling', pct: 0.15, priority: 'must-have' },
-          { category: 'Performer Honorariums', pct: 0.15, priority: 'recommended' },
-          { category: 'Signage & Volunteer Kits', pct: 0.10, priority: 'optional' },
-        ];
-        break;
-      case 'custom':
-      default:
-        weights = [
-          { category: 'Main Space & Production AV', pct: 0.40, priority: 'must-have' },
-          { category: 'Hospitality & Beverage Service', pct: 0.28, priority: 'must-have' },
-          { category: 'Guest Experiential Activations', pct: 0.16, priority: 'recommended' },
-          { category: 'Brand Assets & Collateral', pct: 0.08, priority: 'recommended' },
-          { category: 'Staffing & Concierge', pct: 0.08, priority: 'recommended' },
-        ];
-        break;
-    }
-
-    const categories: BudgetItem[] = weights.map((w, idx): BudgetItem => {
-      const allocated = Math.round(usableBudget * w.pct);
-      return {
-        id: `calc-b-${idx + 1}`,
-        category: w.category,
-        allocatedAmount: allocated,
-        spentAmount: 0,
-        percentage: Math.round(w.pct * 90), // 90% usable + 10% buffer
-        priority: w.priority,
-      };
-    });
-
-    // Add explicit contingency buffer item
-    categories.push({
-      id: `calc-b-buffer`,
-      category: 'Smart Contingency Reserve (AI Buffer)',
-      allocatedAmount: buffer,
-      spentAmount: 0,
-      percentage: 10,
-      priority: 'must-have',
-      notes: 'Automatic 10% safety margin for unexpected overtime or weather changes.',
-    });
-
-    return {
-      totalBudget: totalAmount,
-      allocatedBudget: totalAmount - buffer,
-      contingencyBuffer: buffer,
-      currency: '$',
-      categories,
-    };
+    return budgetService.calculateSmartBudget(category, totalAmount);
   }
 
   /**
    * Phase 3: Sends wizard form data directly to POST /api/planning/generate
    */
   public async generatePlanFromBackend(
-    formData: import('../types/event').EventCreationFormData
-  ): Promise<{ plan: import('../types/event').ServerGeneratedPlan; isFallback: boolean; errorMessage?: string }> {
+    formData: EventCreationFormData
+  ): Promise<{ plan: ServerGeneratedPlan; isFallback: boolean; errorMessage?: string }> {
     try {
-      const resp = await apiClient.post<import('../types/event').ServerGeneratedPlan>('/planning/generate', formData);
+      const resp = await apiClient.post<ServerGeneratedPlan>('/planning/generate', formData);
       if (resp.status === 'success' && resp.data) {
         return {
           plan: resp.data,
@@ -304,8 +167,8 @@ export class EventService implements IEventService {
    * Creates a mathematically compliant offline fallback plan if server is offline
    */
   public createOfflineFallbackPlan(
-    formData: import('../types/event').EventCreationFormData
-  ): import('../types/event').ServerGeneratedPlan {
+    formData: EventCreationFormData
+  ): ServerGeneratedPlan {
     const contingencyAmount = Math.round(formData.budget * 0.1);
     const usableBudget = formData.budget - contingencyAmount;
 
@@ -446,11 +309,11 @@ export class EventService implements IEventService {
    */
   public async callCopilot(
     message: string,
-    currentPlan: import('../types/event').ServerGeneratedPlan,
-    eventContext: import('../types/event').EventCreationFormData
-  ): Promise<{ response: import('../types/event').CopilotResponse; isFallback: boolean; error?: string }> {
+    currentPlan: ServerGeneratedPlan,
+    eventContext: EventCreationFormData
+  ): Promise<{ response: CopilotResponse; isFallback: boolean; error?: string }> {
     try {
-      const resp = await apiClient.post<import('../types/event').CopilotResponse>('/planning/copilot', {
+      const resp = await apiClient.post<CopilotResponse>('/planning/copilot', {
         message,
         currentPlan,
         eventContext,
@@ -485,9 +348,9 @@ export class EventService implements IEventService {
    */
   public createOfflineFallbackCopilotResponse(
     message: string,
-    currentPlan: import('../types/event').ServerGeneratedPlan,
-    eventContext: import('../types/event').EventCreationFormData
-  ): import('../types/event').CopilotResponse {
+    currentPlan: ServerGeneratedPlan,
+    eventContext: EventCreationFormData
+  ): CopilotResponse {
     const lower = message.toLowerCase();
 
     // Budget reduction request

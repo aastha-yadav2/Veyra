@@ -154,11 +154,29 @@ export interface ServerGeneratedPlan {
   missingItems: string[];
 }
 
+export const TASK_PRIORITIES = ['high', 'medium', 'low'] as const;
+export type TaskPriority = (typeof TASK_PRIORITIES)[number];
+
+export function isTaskPriority(value: string): value is TaskPriority {
+  return (TASK_PRIORITIES as readonly string[]).includes(value);
+}
+
+export const DASHBOARD_TABS = [
+  'overview',
+  'budget',
+  'timeline',
+  'tasks',
+  'vendors',
+  'ideas',
+  'risks',
+] as const;
+export type DashboardTab = (typeof DASHBOARD_TABS)[number];
+
 export interface DashboardTask {
   id: string;
   title: string;
   deadline: string;
-  priority: 'high' | 'medium' | 'low';
+  priority: TaskPriority;
   category: string;
   isCompleted: boolean;
   source: 'timeline' | 'missing-item' | 'user';

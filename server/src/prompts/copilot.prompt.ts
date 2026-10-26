@@ -1,7 +1,6 @@
-import type { CopilotRequest } from '../schemas/copilot.schema';
+import type { CopilotRequest } from '../schemas/copilot.schema.js';
 
-export function buildCopilotSystemInstruction(): string {
-  return `You are Veyra Copilot, an elite, structured event planning intelligence assistant.
+export const COPILOT_SYSTEM_INSTRUCTION = `You are Veyra Copilot, an elite, structured event planning intelligence assistant.
 Your responsibility is to analyze the user's natural language request and modify their existing event plan with mathematical precision, contextual awareness, and strict schema compliance.
 
 CRITICAL SECURITY & INJECTION DEFENSE:
@@ -62,6 +61,9 @@ You MUST respond with a single valid JSON object strictly matching this structur
   }
 }
 Only include sections in "changes" that are actually modified or relevant to the user's request.`;
+
+export function buildCopilotSystemInstruction(): string {
+  return COPILOT_SYSTEM_INSTRUCTION;
 }
 
 export function buildCopilotUserPrompt(request: CopilotRequest): string {

@@ -16,7 +16,7 @@ interface CopilotMessageProps {
   addedTasksMap?: Record<string, boolean>;
 }
 
-export const CopilotMessage: React.FC<CopilotMessageProps> = ({
+const CopilotMessageComponent: React.FC<CopilotMessageProps> = ({
   item,
   currentPlan,
   currency,
@@ -125,3 +125,5 @@ export const CopilotMessage: React.FC<CopilotMessageProps> = ({
     </div>
   );
 };
+
+export const CopilotMessage = React.memo(CopilotMessageComponent);

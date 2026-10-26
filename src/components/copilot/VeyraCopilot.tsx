@@ -101,28 +101,25 @@ export const VeyraCopilot: React.FC<VeyraCopilotProps> = ({
     }
   };
 
-  const handleApplyChanges = (messageId: string) => {
-    const targetMsg = messages.find((m) => m.id === messageId);
-    if (!targetMsg || !targetMsg.changes) return;
-
-    // Trigger dashboard state update
-    onApplyPlanChanges(targetMsg.changes);
-
-    // Update message status to applied
-    setMessages((prev) =>
-      prev.map((m) =>
+  // Requirement 9: Stabilize callback references for memoized CopilotMessage components
+  const handleApplyChanges = React.useCallback((messageId: string) => {
+    setMessages((prev) => {
+      const targetMsg = prev.find((m) => m.id === messageId);
+      if (!targetMsg || !targetMsg.changes) return prev;
+      onApplyPlanChanges(targetMsg.changes);
+      return prev.map((m) =>
         m.id === messageId ? { ...m, status: 'applied' } : m
-      )
-    );
-  };
+      );
+    });
+  }, [onApplyPlanChanges]);
 
-  const handleCancelChanges = (messageId: string) => {
+  const handleCancelChanges = React.useCallback((messageId: string) => {
     setMessages((prev) =>
       prev.map((m) =>
         m.id === messageId ? { ...m, status: 'cancelled' } : m
       )
     );
-  };
+  }, []);
 
   const handleRetryLast = () => {
     if (lastUserPrompt) {

@@ -29,7 +29,8 @@ import { VeyraCopilot } from '../copilot/VeyraCopilot';
 import type { 
   FullPlanningDashboardData, 
   DashboardTask, 
-  CopilotChanges 
+  CopilotChanges,
+  DashboardTab 
 } from '../../types/event';
 
 interface PlanningDashboardProps {
@@ -44,11 +45,19 @@ export const PlanningDashboard: React.FC<PlanningDashboardProps> = ({
   onStartNewPlan,
 }) => {
   const [data, setData] = useState<FullPlanningDashboardData>(initialData);
-  const [activeTab, setActiveTab] = useState<'overview' | 'budget' | 'timeline' | 'vendors' | 'ideas' | 'risks' | 'tasks'>('overview');
+  const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
   const [addedMissingItems, setAddedMissingItems] = useState<Record<string, boolean>>({});
   const [isCopilotOpen, setIsCopilotOpen] = useState(true);
 
   const { eventDetails, rawPlan, tasks, vendorTaskStatus } = data;
+
+  const { completedTaskCount, totalTaskCount } = React.useMemo(() => {
+    let completed = 0;
+    for (let i = 0; i < tasks.length; i++) {
+      if (tasks[i].isCompleted) completed++;
+    }
+    return { completedTaskCount: completed, totalTaskCount: tasks.length };
+  }, [tasks]);
 
   const handleToggleTask = (taskId: string) => {
     setData((prev) => ({
@@ -254,21 +263,21 @@ export const PlanningDashboard: React.FC<PlanningDashboardProps> = ({
 
         {/* Navigation Tabs Bar */}
         <div className="flex items-center gap-2 border-b border-white/10 overflow-x-auto pb-2 scrollbar-none">
-          {[
-            { id: 'overview', label: 'Overview', icon: <Sparkles className="w-4 h-4" /> },
-            { id: 'budget', label: 'Smart Budget', icon: <Wallet className="w-4 h-4" /> },
-            { id: 'timeline', label: 'AI Timeline', icon: <Calendar className="w-4 h-4" /> },
-            { id: 'tasks', label: `Tasks (${tasks.filter(t => t.isCompleted).length}/${tasks.length})`, icon: <ListTodo className="w-4 h-4" /> },
-            { id: 'vendors', label: 'Vendors', icon: <CheckSquare className="w-4 h-4" /> },
-            { id: 'ideas', label: 'Ideas', icon: <Lightbulb className="w-4 h-4" /> },
-            { id: 'risks', label: 'What am I forgetting?', icon: <AlertTriangle className="w-4 h-4 text-rose-400" /> },
-          ].map((tab) => {
+          {([
+            { id: 'overview' as const, label: 'Overview', icon: <Sparkles className="w-4 h-4" /> },
+            { id: 'budget' as const, label: 'Smart Budget', icon: <Wallet className="w-4 h-4" /> },
+            { id: 'timeline' as const, label: 'AI Timeline', icon: <Calendar className="w-4 h-4" /> },
+            { id: 'tasks' as const, label: `Tasks (${completedTaskCount}/${totalTaskCount})`, icon: <ListTodo className="w-4 h-4" /> },
+            { id: 'vendors' as const, label: 'Vendors', icon: <CheckSquare className="w-4 h-4" /> },
+            { id: 'ideas' as const, label: 'Ideas', icon: <Lightbulb className="w-4 h-4" /> },
+            { id: 'risks' as const, label: 'What am I forgetting?', icon: <AlertTriangle className="w-4 h-4 text-rose-400" /> },
+          ] satisfies Array<{ id: DashboardTab; label: string; icon: React.ReactNode }>).map((tab) => {
             const isActive = activeTab === tab.id;
             return (
               <button
                 type="button"
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 ${
                   isActive
                     ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/25'
@@ -289,7 +298,7 @@ export const PlanningDashboard: React.FC<PlanningDashboardProps> = ({
             {activeTab === 'overview' && (
               <PlanOverview
                 data={data}
-                onNavigateTab={(tab) => setActiveTab(tab as any)}
+                onNavigateTab={(tab) => setActiveTab(tab)}
               />
             )}
 

@@ -3,12 +3,13 @@ import { CheckSquare, Square, ListTodo, Plus } from 'lucide-react';
 import { Card } from '../common/Card';
 import { Badge } from '../common/Badge';
 import { Button } from '../common/Button';
-import type { DashboardTask } from '../../types/event';
+import type { DashboardTask, TaskPriority } from '../../types/event';
+import { isTaskPriority } from '../../types/event';
 
 interface TaskListProps {
   tasks: DashboardTask[];
   onToggleTask: (taskId: string) => void;
-  onAddTask: (title: string, priority: 'high' | 'medium' | 'low') => void;
+  onAddTask: (title: string, priority: TaskPriority) => void;
 }
 
 export const TaskList: React.FC<TaskListProps> = ({
@@ -18,12 +19,24 @@ export const TaskList: React.FC<TaskListProps> = ({
 }) => {
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
   const [newTitle, setNewTitle] = useState('');
-  const [newPriority, setNewPriority] = useState<'high' | 'medium' | 'low'>('medium');
+  const [newPriority, setNewPriority] = useState<TaskPriority>('medium');
   const [isAdding, setIsAdding] = useState(false);
 
-  const completedCount = tasks.filter((t) => t.isCompleted).length;
-  const totalCount = tasks.length;
-  const completionPercentage = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  // Requirement 5: Single-pass calculation for task completion and metrics
+  const { completedCount, totalCount, completionPercentage, pendingCount } = React.useMemo(() => {
+    let completed = 0;
+    for (let i = 0; i < tasks.length; i++) {
+      if (tasks[i].isCompleted) completed++;
+    }
+    const total = tasks.length;
+    const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
+    return {
+      completedCount: completed,
+      totalCount: total,
+      completionPercentage: pct,
+      pendingCount: total - completed,
+    };
+  }, [tasks]);
 
   const filteredTasks = tasks.filter((task) => {
     if (filter === 'pending') return !task.isCompleted;
@@ -109,7 +122,7 @@ export const TaskList: React.FC<TaskListProps> = ({
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Pending ({totalCount - completedCount})
+            Pending ({pendingCount})
           </button>
           <button
             type="button"
@@ -155,7 +168,12 @@ export const TaskList: React.FC<TaskListProps> = ({
             />
             <select
               value={newPriority}
-              onChange={(e) => setNewPriority(e.target.value as any)}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (isTaskPriority(val)) {
+                  setNewPriority(val);
+                }
+              }}
               className="px-3 py-2 rounded-xl bg-slate-900 border border-white/10 text-white text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500"
             >
               <option value="high">High Priority</option>

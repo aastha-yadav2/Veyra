@@ -1,11 +1,11 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, type GenerativeModel } from '@google/generative-ai';
 import { 
   GeneratedPlanSchema, 
   type GeneratedPlan, 
   type PlanningRequest 
 } from '../schemas/planning.schema.js';
 import { 
-  buildPlanningSystemInstruction, 
+  PLANNING_SYSTEM_INSTRUCTION, 
   buildPlanningUserPrompt 
 } from '../prompts/planning.prompt.js';
 import { logger } from '../utils/logger.js';
@@ -17,6 +17,7 @@ export interface IPlanningAiService {
 export class GeminiPlanningService implements IPlanningAiService {
   private readonly client: GoogleGenerativeAI | null = null;
   private readonly modelName: string;
+  private readonly model: GenerativeModel | null = null;
 
   constructor(apiKey?: string, modelName = 'gemini-1.5-flash') {
     this.modelName = modelName;
@@ -24,6 +25,14 @@ export class GeminiPlanningService implements IPlanningAiService {
 
     if (key && key !== 'your_gemini_api_key_here') {
       this.client = new GoogleGenerativeAI(key);
+      this.model = this.client.getGenerativeModel({
+        model: this.modelName,
+        systemInstruction: PLANNING_SYSTEM_INSTRUCTION,
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.2,
+        },
+      });
       logger.info(`[GeminiPlanningService] Initialized with Gemini model: ${this.modelName}`);
     } else {
       logger.warn('[GeminiPlanningService] No valid GEMINI_API_KEY found. Running in mock/fallback engine mode.');
@@ -34,6 +43,10 @@ export class GeminiPlanningService implements IPlanningAiService {
     return this.client;
   }
 
+  public getModel(): GenerativeModel | null {
+    return this.model;
+  }
+
   public getModelName(): string {
     return this.modelName;
   }
@@ -41,25 +54,15 @@ export class GeminiPlanningService implements IPlanningAiService {
   public async generatePlan(request: PlanningRequest): Promise<GeneratedPlan> {
     logger.info(`[GeminiPlanningService] Generating plan for event: "${request.eventName}" (${request.eventType})`);
 
-    // If no client available, use high-fidelity realistic fallback generator
-    if (!this.client) {
+    // If no client or model available, use high-fidelity realistic fallback generator
+    if (!this.model) {
       return this.generateDeterministicFallback(request);
     }
 
-    const systemInstruction = buildPlanningSystemInstruction();
     const userPrompt = buildPlanningUserPrompt(request);
 
     try {
-      const model = this.client.getGenerativeModel({
-        model: this.modelName,
-        systemInstruction,
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.2,
-        },
-      });
-
-      const result = await model.generateContent(userPrompt);
+      const result = await this.model.generateContent(userPrompt);
       const rawText = result.response.text();
 
       // Clean any potential markdown wrapper
